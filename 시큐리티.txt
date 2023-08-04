@@ -1,0 +1,31 @@
+security ContextHolder 안에 Authentication 타입 객체 저장
+
+Authentication안에 user정보있어야함
+
+User오브젝트 타입 -> UserDetails 타입
+
+Security Session -> Authentication -> UserDetails(이거 관련된 서비스가 UserDetailService)
+(1)Authentication으로 받아와서 UserDetail에 의존성 주입하여 사용가능
+(2)@AuthenticationPrincipal 로 UserDetail을 가져올수 있음
+(3)Oauth로 로그인하면 OAuth2User 객체로 가져올수 있음
+
+이것들이 파라미터로 받아올 때 로직이 복잡해져서 두개를 한꺼번에 묶어서 상속하여 사용(생성자로 나눔)
+
+UserDetailService -> 시큐리티로 로그인이 들어오면 자동으로 loadUserByUserName 호출댐
+
+Service에서 UserDetail이 리턴되면 자동으로 Security Session에 저장
+
+Oauth 처리 과정
+1. 코드받기(인증)
+2. access토큰(권한)
+3. 프로필 정보받아오기
+4. 그 정보로 자동 회원가입/로그인(추가 정보 필요하면 받고 회원가입)
+
+OAuth2UserService의 loadUser로 정보 받아옴(OAuth2UserRequest의 access토큰을 이용해서 가져온다)
+OAuth2UserService, UserDetailService의 load함수가 끝나면 @AuthenticationPrincipal가 생성된다
+
+
+FilterRegistrationBean을 써서 커스텀 필터를 추가가능(우선순위, 적용url 하기 편함) - 모든 시큐리티 필터가 끝나고 실행된다.
+
+일반 로그인 일때, UsernamePasswordAuthenticationFilter를 상속하고 AuthenticationManager를 받아오고 여기서 DetailService 서비스를 불러온다(loadUser도 한다는 의미).
+Authentication를 만들어서 session에 강제 저장
