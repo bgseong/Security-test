@@ -21,6 +21,9 @@ public class PrincipalDetails implements UserDetails {
         authorities.add(new SimpleGrantedAuthority(user.getRoles()));
         return authorities;
     }
+    public User getUser(){
+        return user;
+    }
 
     @Override
     public String getPassword() {
@@ -44,11 +47,11 @@ public class PrincipalDetails implements UserDetails {
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return false;
+        return true;
     }
 }

@@ -58,14 +58,14 @@ public class TokenService implements InitializingBean {
 
 
     public String createAccessToken(PrincipalDetails principalDetails) {
-        return createAccessToken(principalDetails.getUsername(), principalDetails.getAuthorities());
+        return createAccessToken(principalDetails.getUser().getEmail(), principalDetails.getAuthorities());
     }
 
     public String createRefreshToken(PrincipalDetails principalDetails) {
-        return createRefreshToken(principalDetails.getUsername(), principalDetails.getAuthorities());
+        return createRefreshToken(principalDetails.getUser().getEmail(), principalDetails.getAuthorities());
     }
 
-    public String createAccessToken(String name, Collection<? extends GrantedAuthority> inputAuthorities) {
+    public String createAccessToken(String email, Collection<? extends GrantedAuthority> inputAuthorities) {
         String authorities = inputAuthorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
@@ -73,7 +73,7 @@ public class TokenService implements InitializingBean {
         long now = (new Date()).getTime();
 
         String accessToken = Jwts.builder()
-                .setSubject(name)
+                .setSubject(email)
                 .claim(AUTHORITIES_KEY, authorities)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .setExpiration(new Date(now + this.accessTokenValidityInMilliseconds))
@@ -82,7 +82,7 @@ public class TokenService implements InitializingBean {
         return accessToken;
     }
 
-    public String createRefreshToken(String name, Collection<? extends GrantedAuthority> inputAuthorities) {
+    public String createRefreshToken(String email, Collection<? extends GrantedAuthority> inputAuthorities) {
         String authorities = inputAuthorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
@@ -90,7 +90,7 @@ public class TokenService implements InitializingBean {
         long now = (new Date()).getTime();
 
         String Token = Jwts.builder()
-                .setSubject(name)
+                .setSubject(email)
                 .claim(AUTHORITIES_KEY, authorities)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .setExpiration(new Date(now + this.refreshTokenValidityInMilliseconds))
@@ -107,8 +107,7 @@ public class TokenService implements InitializingBean {
                 .parseClaimsJws(token)
                 .getBody();
 
-        User user = usersrepository.findByEmail(claims.get("email",String.class));
-        System.out.println("email : "+user.getEmail());
+        User user = usersrepository.findByEmail(claims.get("sub",String.class));
 
         Collection<? extends GrantedAuthority> authorities =
                 Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))

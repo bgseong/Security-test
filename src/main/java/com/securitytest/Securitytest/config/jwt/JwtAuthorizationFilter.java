@@ -28,13 +28,17 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
 
         String token = tokenService.resolveToken(request);
 
-        if(token == null && tokenService.validateToken(token)){
+        if(token == null){
             chain.doFilter(request, response);
             return;
         }
 
-        Authentication authentication = tokenService.getAuthentication(token);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (tokenService.validateToken(token)) {
+            Authentication authentication = tokenService.getAuthentication(token);
+            System.out.println(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+
         chain.doFilter(request,response);
     }
 }
