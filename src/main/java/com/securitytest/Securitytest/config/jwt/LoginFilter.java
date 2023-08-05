@@ -34,25 +34,28 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
             e.printStackTrace();
         }
 
+        System.out.println(loginRequestDto.getEmail());
+        System.out.println(loginRequestDto.getPassword());
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(
                         loginRequestDto.getEmail(),
                         loginRequestDto.getPassword());
 
-        Authentication authentication = authenticationManager.authenticate(authenticationToken);
+        System.out.println("JwtAuthenticationFilter : 토큰생성완료");
 
+        Authentication authentication = authenticationManager.authenticate(authenticationToken);
         return authentication;
 
     }
 
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
+        System.out.println("인증성공");
         PrincipalDetails principalDetailis = (PrincipalDetails) authResult.getPrincipal();
-
-        TokenDTO tokens = tokenService.createToken(principalDetailis);
-
-        response.setHeader("Authorization", "bearer " + tokens.getAccessToken());
-        response.setHeader("RefreshToken", "bearer " + tokens.getRefreshToken());
+        String accessToken = tokenService.createAccessToken(principalDetailis);
+        String refreshToken = tokenService.createRefreshToken(principalDetailis);
+        response.setHeader("Authorization", "bearer " + accessToken);
+        response.setHeader("RefreshToken", "bearer " + refreshToken);
 
 
     }

@@ -16,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,8 +42,8 @@ public class TokenService implements InitializingBean {
     private Key key;
 
     public TokenService(
-            UserRepository usersrepository, @Value("${jwt.secret}") String secret,
-            @Value("${jwt.token-validity-in-seconds}") long tokenValidityInSeconds) {
+            UserRepository usersrepository, @Value("${spring.jwt.secret}") String secret,
+            @Value("${spring.jwt.token-validity-in-seconds}") long tokenValidityInSeconds) {
         this.usersrepository = usersrepository;
         this.secret = secret;
         this.accessTokenValidityInMilliseconds = tokenValidityInSeconds * 500;
@@ -56,11 +57,15 @@ public class TokenService implements InitializingBean {
     }
 
 
-    public TokenDTO createToken(PrincipalDetails principalDetails) {
-        return createToken(principalDetails.getUsername(), principalDetails.getAuthorities());
+    public String createAccessToken(PrincipalDetails principalDetails) {
+        return createAccessToken(principalDetails.getUsername(), principalDetails.getAuthorities());
     }
 
-    public TokenDTO createToken(String name, Collection<? extends GrantedAuthority> inputAuthorities) {
+    public String createRefreshToken(PrincipalDetails principalDetails) {
+        return createRefreshToken(principalDetails.getUsername(), principalDetails.getAuthorities());
+    }
+
+    public String createAccessToken(String name, Collection<? extends GrantedAuthority> inputAuthorities) {
         String authorities = inputAuthorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
@@ -74,26 +79,36 @@ public class TokenService implements InitializingBean {
                 .setExpiration(new Date(now + this.accessTokenValidityInMilliseconds))
                 .compact();
 
-        String refreshToken = Jwts.builder()
+        return accessToken;
+    }
+
+    public String createRefreshToken(String name, Collection<? extends GrantedAuthority> inputAuthorities) {
+        String authorities = inputAuthorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(","));
+
+        long now = (new Date()).getTime();
+
+        String Token = Jwts.builder()
                 .setSubject(name)
                 .claim(AUTHORITIES_KEY, authorities)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .setExpiration(new Date(now + this.refreshTokenValidityInMilliseconds))
                 .compact();
 
-        return TokenDTO.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
+        return Token;
     }
 
-    public Authentication getAuthentication(User user) {
+    public Authentication getAuthentication(String token) {
         Claims claims = Jwts
                 .parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+
+        User user = usersrepository.findByEmail(claims.get("email",String.class));
+        System.out.println("email : "+user.getEmail());
 
         Collection<? extends GrantedAuthority> authorities =
                 Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
@@ -105,8 +120,8 @@ public class TokenService implements InitializingBean {
         return new UsernamePasswordAuthenticationToken(principal, null, authorities);
     }
 
-    public String resolveRefreshToken(HttpServletRequest request) {
-        String bearerToken = request.getHeader(REFRESHTOKEN_HEADER);
+    public String resolveToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
 
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);

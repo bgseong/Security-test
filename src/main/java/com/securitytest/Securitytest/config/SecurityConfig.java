@@ -1,8 +1,13 @@
 package com.securitytest.Securitytest.config;
 
+import com.securitytest.Securitytest.config.jwt.JwtAuthorizationFilter;
+import com.securitytest.Securitytest.config.jwt.LoginFilter;
+import com.securitytest.Securitytest.config.jwt.TokenService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,6 +22,11 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+    @Autowired
+    TokenService tokenService;
+
+    @Autowired
+    CorsConfig corsConfig;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -31,9 +41,10 @@ public class SecurityConfig {
 
                 .and()
                 .formLogin().disable()
-                .httpBasic().disable();
+                .httpBasic().disable()
+                .apply(new MyCustomDsl())
 
-        http
+                .and()
                 .authorizeRequests()
                 .requestMatchers("/api/v1/user/**")
                 .access("hasRole('USER') or hasRole('MANAGER') or hasRole('ADMIN')")
@@ -46,5 +57,17 @@ public class SecurityConfig {
         return http.build();
 
 
+    }
+
+    public class MyCustomDsl extends AbstractHttpConfigurer<MyCustomDsl, HttpSecurity> {
+        @Override
+        public void configure(HttpSecurity http) throws Exception {
+            AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+            http
+                    .addFilter(corsConfig.corsFilter())
+                    .addFilter(new LoginFilter(authenticationManager))
+                    .addFilter(new JwtAuthorizationFilter(authenticationManager,tokenService));
+
+        }
     }
 }
